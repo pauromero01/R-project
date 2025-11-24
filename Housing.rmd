@@ -1,0 +1,186 @@
+---
+title: "Housing"
+output: html_document
+date: "2025-10-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Importar datos
+```{r}
+library("readr")
+housing<-as.data.frame(read_csv("/Users/pau/Documents/CEU/Visualización/Housing.csv"))
+```
+
+### Estructura del conjunto de datos
+```{r}
+class(housing)
+dim(housing)
+str(housing)
+```
+El archivo es un data frame que contiene 4600 observaciones y 18 variables.
+
+# 2. Depuración de datos
+```{r} 
+housing2<-subset(housing, select = -c(date, view, condition, street, statezip))
+```
+Eliminamos las variables date, view, condition, street and statezip.
+
+```{r}
+housing2$antiguedad <- 2025 - housing2$yr_built
+```
+Creamos una nueva variable llamada antigüedad, que nos indica cuántos años han pasado desde la
+construcción de la casa.
+
+```{r}
+housing2$price <- housing2$price * 0.86
+```
+Conviertimos la variable price a euros, sabiendo que 1 USD = 0,86 EUR.
+
+### a. Identificamos valores perdidos
+```{r}
+sum(is.na(housing2))
+```
+No se observan valores perdidos en el conjunto de datos.
+
+### b. Identificamos el número de ciudades del estudio
+```{r}
+length(unique(housing2$city))
+```
+### c. Identificamos las características de la vivienda más antigua y de la más nueva
+```{r}
+housing2[c(which.min(housing2$yr_built), which.max(housing2$yr_built)), ]
+```
+
+### d. Identificamos las viviendas que tienen más de 5 baños y más de 5 habitaciones y las ordenamos por la superficie habitable
+```{r}
+subset_houses <- housing2[housing2$bathrooms > 5 & housing2$bedrooms > 5, ]
+subset_houses <- subset_houses[order(-subset_houses$sqft_living), ]
+head(subset_houses)
+```
+# 3. Descriptiva univariante
+```{r}
+library("ggplot2")
+ggplot(data=housing2, aes(x=" ",y=log(price)))+
+  geom_boxplot(col="brown",fill="lightblue")+
+  labs(title="Diagrama de cajas y bigotes del precio de la vivienda",
+      y="Precio",
+      x=" ")
+```
+
+Boxplot de la variable price transformada.
+
+```{r}
+min(housing2$price)
+length(which(housing2$price == 0))
+```
+Hay 49 observaciones con un precio de 0EUR, se eliminan dichas observaciones:
+
+```{r}
+housing3<-subset(housing2, price != 0)
+```
+
+```{r}
+medidas <- data.frame(
+  Media=mean(housing3$price),
+  Mediana=median(housing3$price),
+  DT=sd(housing3$price),
+  Varianza=var(housing3$price),
+  IQR=IQR(housing3$price),
+  P25=quantile(housing3$price,0.25),
+  P75=quantile(housing3$price,0.75)
+)
+medidas
+```
+Tabla con medidas descriptivas de la variable price.
+
+```{r}
+get_mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+moda <- get_mode(housing3$bedrooms)
+moda
+```
+Número de habitaciones más frecuente en la base de datos.
+
+```{r}
+library("ggplot2")
+ggplot(data=housing3, aes(x=factor(bedrooms),y=log(price),fill=factor(bedrooms)))+
+  geom_boxplot()+
+  scale_fill_manual(values=rainbow(length(unique(housing3$bedrooms))))+
+  labs(title="Diagrama de cajas y bigotes del precio por número de habitaciones",
+    x="Habitaciones",
+    y="Precio")+
+theme_minimal()
+```
+
+Se observa una clara tendencia de aumento de precio mediano en función del número de habitaciones. Cabe destacar mayor presencia de valores atípicos en casas de 2 a 5 habitaciones, que son las más frecuentes en esta muestra, aunque los inmuebles en este rango presentan poca variación respecto a la mediana. Cuantas más habitaciones, más rango de precio hay. También se observa la escasez de datos en casas de 0 y 9 habitaciones.
+
+# 4. Bidimensional
+```{r}
+housing4<-subset(housing3, housing3$city == c("Shoreline", "Redmond", "Sammamish"))
+```
+Conjunto de datos más reducido con las observaciones para las ciudades de Shoreline, Redmond y Sammamish.
+
+```{r}
+library("ggplot2")
+ggplot(data=housing4, aes(x=sqft_living,y=price,color=factor(city)))+
+  geom_point()+
+  scale_fill_manual(values=rainbow(length(unique(housing4$city))))+
+  labs(title="Precio de la vivienda por metros cuadrados",
+       y="Precio",
+       x="Metros cuadrados")
+```
+
+Hay una clara concentración de inmuebles que aumentan de precio proporcionalmente a la superficie. En precios altos encontramos pocos inmuebles con una superficie muy grande. Por otra parte, observamos valores atípicos de precios muy altos en superficies extensas. No parece que haya disparidad entre las tres ciudades.
+
+```{r}
+recta <- lm(housing4$sqft_living~housing4$price)
+covarianza<-cov(housing4$sqft_living,housing4$price)
+correlacion<-cor(housing4$price,housing4$sqft_living)
+summary(recta)
+covarianza
+correlacion
+```
+La ordenada predeciría que una superficie tendría 946200sqft con un precio de 0EUR. Por cada euro adicional en el precio, la superficie aumentaría en 0,002643sqft.
+
+```{r}
+library("ggplot2")
+ggplot(housing4, aes(x=sqft_living,y=price)) +
+  geom_point() +
+  geom_smooth(method="lm",color="darkgreen",lwd=1.2,se=FALSE) +
+  labs(title="Precio de la vivienda por metros cuadrados",
+       x="Metros cuadrados",
+       y="Precio")
+```
+
+El coeficiente de determinación (R^2 = 0.54) indica que el 54 % de la variabilidad de la variable dependiente puede ser explicada por el modelo. Parece haber una relación lineal clara entre el precio y la superficie en este conjunto de datos.
+
+```{r}
+residuos <- recta$residuals
+valores_ajust <- recta$fitted.values
+
+library("ggplot2")
+ggplot(data=recta, aes(x=valores_ajust,y=residuos)) +
+  geom_point() +
+  geom_smooth(method="lm",color="red",lwd=1.2,se=FALSE) +
+  geom_smooth(aes(y=valores_ajust),color="blue",lwd=1.2,linetype="dashed") +
+  labs(title="Distribución de residuos",
+       x="Valores ajustados",
+       y="Residuos")
+```
+
+Hay una acumulación de observaciones con residuos tanto positivos como negativos, el patrón no aleatorio de dichos residuos indica que el modelo no captura completamente la relación entre las variables.
+
+```{r}
+slope<-recta$coefficients [1]
+intercept<-recta$coefficients [2]
+Precio100sqft<-slope*100+intercept
+Precio200sqft<-slope*200+intercept
+print(paste("Price for 100 sqft =", Precio100sqft))
+print(paste("Price for 200 sqft =", Precio200sqft))
+```
+Con una superficie habitable de 100 y 200 metros cuadrados, el precio sería de 94624 y 189248 euros respectivamente.
