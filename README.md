@@ -1,3 +1,3 @@
-# Housing Dataset — Treatment and Analysis
+# R Exercices
 
-This R project on an imagined housing dataset starts with an initial treatment of the data followed by a statistical analysis. Please refer to the .rmd file to find the complete code and the html file to see a more refined presentation of the dataset including visuals.
+This R project explores various data analysis and visualization techniques using R. Please refer to the .Rmd file to find the complete code, and the HTML file to see a more refined presentation of the dataset, including visualizations and key insights derived from the analysis.
