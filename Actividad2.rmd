@@ -1,0 +1,186 @@
+---
+title: "Actividad 2"
+output: html_document
+date: "2025-12-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Replicar el gráfico
+Replique un gráfico de forma eficiente.
+```{r}
+library(ggplot2)
+library(dplyr)
+m <- mpg %>% group_by(drv) %>% summarise(x=mean(displ),y=mean(hwy))
+ggplot(mpg,aes(displ,hwy,color=class))+
+  geom_point(size=2.5,shape=2)+
+  geom_smooth(aes(displ,hwy),method="lm",se=FALSE,col="black",lty=2)+
+  geom_point(data=m,aes(x,y),col="red",size=4)+
+  facet_wrap(~drv)+
+  labs(title="Consumo en autopista según cilindrada y tipo de vehículo",
+       subtitle="Dataset: mpg",
+       x="Cilindrada (litros)",y="Consumo en autopista (hwy)",color="Clase")+
+  theme_minimal()+
+  theme(plot.title=element_text(face="bold"),legend.position="bottom")
+```
+
+## 2. Mapa de Europa
+Haz un mapa de Europa coloreando cada país según su población estimada (pop_est), usando
+los datos obtenidos con ne_countries(). Los países más poblados deben aparecer en colores más
+intensos. Añade título, leyenda y un estilo limpio.
+```{r}
+library(rnaturalearth)
+library(ggplot2)
+Europe <- ne_countries(continent="Europe")
+ggplot(Europe)+
+  geom_sf(aes(fill=pop_est))+
+  coord_sf(xlim=c(-20,40),ylim=c(35,70))+
+  labs(title="Mapa de Europa según estimaciones de población",
+       fill="Población")+
+  scale_fill_viridis_c(direction=-1)+
+  theme_minimal()
+```
+
+## 3. Función de clasificación
+Genere una función llamada clasificar_flores() que reciba el dataset iris (instalado en R) por
+defecto y cree una nueva variable llamada tamaño_petalo, de forma que si la variable Petal.Length es mayor a 4 devuelva “Largo” y en caso contrario devuelva “Corto”.
+Especificaciones:
+- Use un bucle para recorrer las filas.
+- Use if/else para clasificar.
+- Devuelva el dataset con la nueva columna.
+```{r}
+clasificar_flores <- function(iris) {
+  tamaño_petalo <- c()
+  for (i in 1:nrow(iris)) {
+    if (iris$Petal.Length[i] > 4) {
+      tamaño_petalo[i] <- "Largo"
+    } else {
+      tamaño_petalo[i] <- "Corto"
+    }
+  }
+  iris$tamaño_petalo <- tamaño_petalo
+  return(iris)
+}
+nuevo_iris <- clasificar_flores(iris)
+head(nuevo_iris,10)
+```
+
+## 4. Simulación
+En este ejercicio vamos a programar una pequeña simulación divertida. La máquina intentará
+adivinar un número secreto entre 1 y 50. Genere una función adivina_numero() que:
+- Elija un número arbitrario entre 1 y 50 (no lo muestre hasta el final).<br>
+- La máquina tiene 10 intentos para adivinar el resultado.<br>
+- En cada intento:<br>
+i. Si adivina, devuelve “Enhorabuena, has encontrado el número __ en ___ intentos”.<br>
+ii. Si el número es más alto que el propuesto, devuelva “Alto” y vuelva a elegir un número entre
+1 y el número secreto - 1.<br>
+iii. Si el número es más bajo que el propuesto, devuelva “Bajo” y vuelva a elegir un número entre
+el número secreto +1 y 50.
+```{r}
+adivina_numero <- function() {
+numero <- sample(1:50,1)
+L1 <- 1
+L2 <- 50
+  for (i in 1:10) {
+    guess <- sample(L1:L2,1)
+  if (guess==numero) {
+      return(paste("Enhorabuena, has encontrado el número", numero,
+                   "en", i, "intentos"))
+    }
+    if (guess>numero) {
+      cat("Alto, ")
+      L2 <- guess - 1
+    } else {
+      cat("Bajo, ")
+      L1 <- guess + 1
+    }
+  }
+}
+adivina_numero()
+```
+
+## 5. Simulación probabilidad
+Simule 10 mil valores de una distribución N(50,102). Calcule la probabilidad de que la variable tome valores superiores a 60.
+```{r}
+L1 <- c(60,seq(60,100,0.0038),100)
+L2 <- c(0,dnorm(seq(60,100,0.0038),mean=50,sd=102),0)
+
+x <- seq(0,100, 0.001)
+y <- dnorm(x,mean=50,sd=102)
+plot(x,y,ylab="Probabilidad",xlab="Variable aleatoria x",main="N(50,102)",type="l",
+     col="red",lty=1,lwd=2)
+
+segments(50,0,50,dnorm(x=50,mean=50,sd=102),lty=1,col="blue")
+
+polygon(L1,L2,col="lightblue")
+```
+
+```{r}
+p <- pnorm(60,mean=50,sd=102,lower.tail=FALSE)
+paste("La probabilidad de que la variable tome valores superiores a 60 es del", p*100,"%")
+```
+
+## 6. Teorema central del límite
+En estadística, el Teorema Central del Límite indica que muchas distribuciones, bajo ciertas
+condiciones, tienden a aproximarse a una distribución normal. En este ejercicio deberás simular datos de dos distribuciones diferentes: Uniforme y Poisson. Explica en qué casos y por qué estas
+distribuciones se aproximan a una normal.
+```{r}
+muestra <- runif(40,0,1)
+mean <- 5
+sd <- 1
+means <- rep(0,100000)
+for(i in 1:100000){
+  muestra <- runif(40,0,1)
+  means[i] <- mean(muestra)
+}
+hist(means,freq=FALSE,
+     main="Aproximación de una distribución uniforme a una normal",
+     xlab="Valores",ylab="Dist. Uniforme")
+
+x <- seq(0.3,0.7,0.001)
+lines(x,dnorm(x,mean=0.5,sd=1/sqrt(12*35)),col="red",lwd=2)
+```
+
+La media de un gran número de variables aleatorias independientes con distribución uniforme se puede aproximar por una distribución normal cuando el número de variables es más de 30 (generalmente).
+
+```{r}
+lambda <- 12
+valores <- 0:30
+pdist <- numeric(length(valores))
+
+for(i in 1:length(valores)){
+  pdist[i] <- ppois(valores[i],lambda)
+}
+plot(valores,pdist,type="s",lwd=2,
+     main="Aproximación de una distribución Poisson a una normal",
+     xlab="Valores",ylab="Dist. Poisson")
+
+dnorm <- pnorm(valores + 0.5,lambda,sd=sqrt(lambda))
+lines(valores,dnorm,col="red",lwd=2)
+```
+
+Una variable aleatoria con distribución de Poisson se puede aproximar por una distribución normal cuando el parámetro lambda es grande, generalmente más de 20 (o más de 10 con corrección de continuidad).
+
+## 7. Web scrapping
+Obtén de https://quotes.toscrape.com/ las citas de las primeras cinco páginas. Debes recoger en un dataset la cita y el autor.
+```{r}
+library(rvest)
+citas <- data.frame()
+for (i in 1:5) {
+  page <- read_html(paste0("https://quotes.toscrape.com/page/", i))
+  citas <- rbind(citas,
+    data.frame(
+      quote = page %>% 
+        html_elements(".text") %>% 
+        html_text(),
+      author = page %>% 
+        html_elements(".author") %>% 
+        html_text(),
+      stringsAsFactors = FALSE
+    )
+  )
+}
+head(citas,10)
+```
